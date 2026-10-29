@@ -215,6 +215,7 @@ export function BottomDock({
     setMuted,
     browserSttEnabled,
     setBrowserSttEnabled,
+    isSpeaking,
   } = useAssistantStore();
 
   const isListening =
@@ -351,6 +352,12 @@ export function BottomDock({
         recoverable: true,
       });
       return;
+    }
+    // Barge-in: stop any ongoing speech.
+    try {
+      window.speechSynthesis?.cancel();
+    } catch {
+      // ignore
     }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -630,7 +637,8 @@ export function BottomDock({
   // Pause/resume continuous listening around assistant speech.
   useEffect(() => {
     if (!continuousListening) return;
-    isSpeakingRef.current = state === "speaking" || state === "thinking";
+    isSpeakingRef.current =
+      isSpeaking || state === "speaking" || state === "thinking";
     if (isSpeakingRef.current && continuousRecRef.current) {
       try {
         continuousRecRef.current.stop?.();
@@ -645,7 +653,7 @@ export function BottomDock({
       }, 400);
       return () => clearTimeout(t);
     }
-  }, [state, continuousListening]);
+  }, [state, continuousListening, isSpeaking]);
 
   // Speak reply only if not muted.
   // (handled in handleSend's speak block — but handleSend is in App.

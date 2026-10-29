@@ -40,6 +40,7 @@ export default function App() {
     setAudioStatus,
     speechEnabled,
     muted,
+    setIsSpeaking,
     setMicPermissionGranted,
     setMicEnabled,
     setState,
@@ -385,7 +386,13 @@ export default function App() {
             )?.text as string | undefined;
           if (reply && speechEnabled && !muted && "speechSynthesis" in window) {
             speechSynthesis.cancel();
-            speechSynthesis.speak(new SpeechSynthesisUtterance(reply));
+            setIsSpeaking(true);
+            const utterance = new SpeechSynthesisUtterance(reply);
+            utterance.onend = () => setIsSpeaking(false);
+            utterance.onerror = () => setIsSpeaking(false);
+            speechSynthesis.speak(utterance);
+          } else {
+            setIsSpeaking(false);
           }
         } catch {
           // voice output is best-effort
@@ -412,6 +419,7 @@ export default function App() {
       setLastError,
       speechEnabled,
       muted,
+      setIsSpeaking,
     ],
   );
 

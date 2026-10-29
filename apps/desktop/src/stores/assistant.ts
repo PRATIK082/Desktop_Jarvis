@@ -93,6 +93,8 @@ interface AssistantStore {
   ) => void;
   speechEnabled: boolean;
   setSpeechEnabled: (enabled: boolean) => void;
+  isSpeaking: boolean;
+  setIsSpeaking: (speaking: boolean) => void;
   continuousListening: boolean;
   setContinuousListening: (enabled: boolean) => void;
   browserSttEnabled: boolean;
@@ -203,6 +205,8 @@ export const useAssistantStore = create<AssistantStore>((set, get) => ({
   setAudioStatus: (status) => set({ audioStatus: status }),
   speechEnabled: true,
   setSpeechEnabled: (enabled) => set({ speechEnabled: enabled }),
+  isSpeaking: false,
+  setIsSpeaking: (speaking) => set({ isSpeaking: speaking }),
   continuousListening: false,
   setContinuousListening: (enabled) => set({ continuousListening: enabled }),
   browserSttEnabled: ((): boolean => {
