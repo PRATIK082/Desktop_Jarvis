@@ -211,6 +211,8 @@ export function BottomDock({
     setContinuousListening,
     muted,
     setMuted,
+    browserSttEnabled,
+    setBrowserSttEnabled,
   } = useAssistantStore();
 
   const isListening =
@@ -239,7 +241,16 @@ export function BottomDock({
       document.getElementById("jarvis-chat-input")?.focus();
       return;
     }
-    // If a recognition is already running, abort it first to avoid
+    if (!browserSttEnabled) {
+      setLastError({
+        code: "stt_disabled",
+        message:
+          "Browser voice recognition is off (offline mode). Enable it in Settings → Voice, or use typed input.",
+        recoverable: true,
+      });
+      document.getElementById("jarvis-chat-input")?.focus();
+      return;
+    }
     // "aborted" / "already started" errors from the browser.
     if (recognitionRef.current) {
       try {
@@ -290,6 +301,16 @@ export function BottomDock({
         // "aborted" fires when we (or the browser) stopped recognition
         // mid-flight; treat it as a benign no-op rather than an error.
         if (kind === "aborted" || kind === "no-speech") {
+          return;
+        }
+        if (kind === "network") {
+          setLastError({
+            code: "stt_network",
+            message:
+              "Browser voice recognition needs an internet connection. Disable it in Settings → Voice or use typed input.",
+            recoverable: true,
+          });
+          setBrowserSttEnabled(false);
           return;
         }
         const message =
@@ -421,6 +442,16 @@ export function BottomDock({
         rec.onerror = (ev: { error?: string }) => {
           const kind = ev?.error ?? "unknown";
           if (kind === "no-speech" || kind === "aborted") return;
+          if (kind === "network") {
+            setLastError({
+              code: "stt_network",
+              message:
+                "Browser voice recognition needs an internet connection. Disable it in Settings → Voice or use typed input.",
+              recoverable: true,
+            });
+            setBrowserSttEnabled(false);
+            return;
+          }
           setLastError({
             code: `stt_${kind}`,
             message: `Voice input failed (${kind}).`,

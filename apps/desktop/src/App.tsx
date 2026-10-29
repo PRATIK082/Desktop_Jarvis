@@ -869,6 +869,8 @@ function SettingsScreen() {
     setReducedMotion,
     inputDeviceId,
     setInputDeviceId,
+    browserSttEnabled,
+    setBrowserSttEnabled,
   } = useAssistantStore();
   const { prefs: layoutPrefs, update: updateLayout } = useLayoutPrefs();
   const [micDevices, setMicDevices] = useState<MediaDeviceInfo[]>([]);
@@ -1012,6 +1014,20 @@ function SettingsScreen() {
               checked={reducedMotion}
               onChange={(e) => setReducedMotion(e.target.checked)}
               aria-label="Reduced motion"
+            />
+          </label>
+          <label className="flex items-center justify-between gap-4">
+            <span className="text-light">
+              Browser voice recognition
+              <span className="block text-xs text-surface-panel">
+                Uses the browser's cloud STT (requires internet). Off = offline.
+              </span>
+            </span>
+            <input
+              type="checkbox"
+              checked={browserSttEnabled}
+              onChange={(e) => setBrowserSttEnabled(e.target.checked)}
+              aria-label="Browser voice recognition"
             />
           </label>
         </div>
