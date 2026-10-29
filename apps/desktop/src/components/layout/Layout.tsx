@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAssistantStore } from "../../stores/assistant";
 import { VoiceOrb } from "../voice/VoiceOrb";
 
@@ -218,6 +218,9 @@ export function BottomDock({
   // Push-to-talk: browser SpeechRecognition (no sidecar STT endpoint yet).
   // Result transcript is bridged straight into onSendMessage so voice turns
   // work end-to-end today; local faster-whisper can replace this later.
+  const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
+  const [isListeningSTT, setIsListeningSTT] = useState(false);
+
   const startListening = () => {
     const w = window as unknown as {
       SpeechRecognition?: new () => SpeechRecognitionInstance;
@@ -229,6 +232,16 @@ export function BottomDock({
       document.getElementById("jarvis-chat-input")?.focus();
       return;
     }
+    // If a recognition is already running, abort it first to avoid
+    // "aborted" / "already started" errors from the browser.
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop?.();
+      } catch {
+        // ignore
+      }
+      recognitionRef.current = null;
+    }
     // Barge-in: the user takes the floor — stop any ongoing speech first.
     try {
       window.speechSynthesis?.cancel();
@@ -237,9 +250,11 @@ export function BottomDock({
     }
     try {
       const rec = new SR();
+      recognitionRef.current = rec;
       rec.lang = "en-US";
       rec.interimResults = false;
       rec.maxAlternatives = 1;
+      setIsListeningSTT(true);
       rec.onresult = (ev: SpeechRecognitionResultEvent) => {
         const transcript: string =
           ev?.results?.[0]?.[0]?.transcript ?? "";
@@ -253,21 +268,27 @@ export function BottomDock({
       };
       rec.onerror = (ev: { error?: string }) => {
         const kind = ev?.error ?? "unknown";
+        // "aborted" fires when we (or the browser) stopped recognition
+        // mid-flight; treat it as a benign no-op rather than an error.
+        if (kind === "aborted" || kind === "no-speech") {
+          return;
+        }
         const message =
           kind === "not-allowed"
             ? "Microphone blocked — allow access in the browser prompt."
-            : kind === "no-speech"
-              ? "No speech detected — try speaking again."
-              : kind === "audio-capture"
-                ? "No microphone found — check the input device."
-                : `Voice input failed (${kind}).`;
+            : kind === "audio-capture"
+              ? "No microphone found — check the input device."
+              : `Voice input failed (${kind}).`;
         setLastError({ code: `stt_${kind}`, message, recoverable: true });
       };
       rec.onend = () => {
-        // Single-shot recognition auto-stops; nothing to clean up.
+        recognitionRef.current = null;
+        setIsListeningSTT(false);
       };
       rec.start();
     } catch {
+      recognitionRef.current = null;
+      setIsListeningSTT(false);
       document.getElementById("jarvis-chat-input")?.focus();
     }
   };
@@ -313,9 +334,9 @@ export function BottomDock({
           onRelease={() => {}}
           onClick={() => {
             if (!micPermissionGranted) void requestMicPermission();
-            else startListening();
+            else if (!isListeningSTT) startListening();
           }}
-          disabled={false}
+          disabled={isListeningSTT}
         />
       </div>
 

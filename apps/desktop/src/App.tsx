@@ -301,6 +301,12 @@ export default function App() {
     async (textOverride?: string) => {
       const text = (textOverride ?? inputValue).trim();
       if (!text) return;
+      // Barge-in: stop any ongoing speech before sending.
+      try {
+        window.speechSynthesis?.cancel();
+      } catch {
+        // ignore
+      }
       const turnId = crypto.randomUUID();
       setCurrentTurnId(turnId);
       setStreamingText("");
