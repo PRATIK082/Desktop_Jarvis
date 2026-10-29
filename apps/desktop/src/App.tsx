@@ -39,6 +39,7 @@ export default function App() {
     setEngineActive,
     setAudioStatus,
     speechEnabled,
+    muted,
     setMicPermissionGranted,
     setMicEnabled,
     setState,
@@ -382,7 +383,7 @@ export default function App() {
               (e: { type?: string; role?: string; text?: string }) =>
                 e?.type === "transcript" && e?.role === "assistant" && e?.text,
             )?.text as string | undefined;
-          if (reply && speechEnabled && "speechSynthesis" in window) {
+          if (reply && speechEnabled && !muted && "speechSynthesis" in window) {
             speechSynthesis.cancel();
             speechSynthesis.speak(new SpeechSynthesisUtterance(reply));
           }
@@ -410,6 +411,7 @@ export default function App() {
       processEvent,
       setLastError,
       speechEnabled,
+      muted,
     ],
   );
 

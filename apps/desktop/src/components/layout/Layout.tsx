@@ -5,6 +5,7 @@ import { VoiceOrb } from "../voice/VoiceOrb";
 // Minimal Web Speech API shapes (not in this project's TS DOM lib).
 interface SpeechRecognitionInstance {
   lang: string;
+  continuous: boolean;
   interimResults: boolean;
   maxAlternatives: number;
   onresult: ((ev: SpeechRecognitionResultEvent) => void) | null;
@@ -206,6 +207,10 @@ export function BottomDock({
     setLastError,
     inputDeviceId,
     setMicListening,
+    continuousListening,
+    setContinuousListening,
+    muted,
+    setMuted,
   } = useAssistantStore();
 
   const isListening =
@@ -309,19 +314,190 @@ export function BottomDock({
     }
   };
 
-  // HomeDashboard quick actions dispatch these window events.
+  // Continuous (hands-free) listening mode.
+  const continuousRecRef = useRef<SpeechRecognitionInstance | null>(null);
+  const accumulatedRef = useRef<string>("");
+  const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isSpeakingRef = useRef(false);
+  const continuousStartRef = useRef<(() => void) | null>(null);
+
   useEffect(() => {
-    const focusInput = () =>
-      document.getElementById("jarvis-chat-input")?.focus();
-    const ptt = () => startListening();
-    window.addEventListener("jarvis:focus-input", focusInput);
-    window.addEventListener("jarvis:push-to-talk", ptt);
+    if (!continuousListening) {
+      // Stop any running continuous recognition.
+      if (continuousRecRef.current) {
+        try {
+          continuousRecRef.current.stop?.();
+        } catch {
+          // ignore
+        }
+        continuousRecRef.current = null;
+      }
+      if (silenceTimerRef.current) {
+        clearTimeout(silenceTimerRef.current);
+        silenceTimerRef.current = null;
+      }
+      return;
+    }
+
+    const w = window as unknown as {
+      SpeechRecognition?: new () => SpeechRecognitionInstance;
+      webkitSpeechRecognition?: new () => SpeechRecognitionInstance;
+    };
+    const SR = w.SpeechRecognition ?? w.webkitSpeechRecognition;
+    if (typeof SR !== "function") {
+      setContinuousListening(false);
+      setLastError({
+        code: "stt_unsupported",
+        message: "Continuous listening requires browser Speech Recognition.",
+        recoverable: true,
+      });
+      return;
+    }
+
+    const startRec = () => {
+      if (continuousRecRef.current) return;
+      // Don't listen while the assistant is speaking (avoid echo).
+      if (isSpeakingRef.current) return;
+      try {
+        const rec = new SR();
+        continuousRecRef.current = rec;
+        rec.lang = "en-US";
+        rec.continuous = true;
+        rec.interimResults = true;
+        rec.maxAlternatives = 1;
+        accumulatedRef.current = "";
+
+        rec.onresult = (ev: SpeechRecognitionResultEvent) => {
+          let finalChunk = "";
+          let interim = "";
+          const results = ev?.results;
+          if (!results) return;
+          for (let i = 0; i < results.length; i++) {
+            const r = results[i];
+            const t = r?.[0]?.transcript ?? "";
+            if (r && (r as { isFinal?: boolean }).isFinal) {
+              finalChunk += t + " ";
+            } else {
+              interim += t;
+            }
+          }
+          if (finalChunk.trim()) {
+            accumulatedRef.current += finalChunk;
+            // Reset silence timer: send after 1.2s of no new finals.
+            if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+            silenceTimerRef.current = setTimeout(() => {
+              const text = accumulatedRef.current.trim();
+              accumulatedRef.current = "";
+              if (!text) return;
+              // Voice commands.
+              const lower = text.toLowerCase();
+              if (/\bmute\b/.test(lower) && !/\bunmute\b/.test(lower)) {
+                setMuted(true);
+                try {
+                  window.speechSynthesis?.cancel();
+                } catch {
+                  // ignore
+                }
+                return;
+              }
+              if (/\bunmute\b/.test(lower)) {
+                setMuted(false);
+                return;
+              }
+              if (
+                /disable listening|turn off listening/.test(lower)
+              ) {
+                setContinuousListening(false);
+                return;
+              }
+              if (/enable listening|turn on listening/.test(lower)) {
+                setContinuousListening(true);
+                return;
+              }
+              onSendMessage(text);
+            }, 1200);
+          }
+        };
+        rec.onerror = (ev: { error?: string }) => {
+          const kind = ev?.error ?? "unknown";
+          if (kind === "no-speech" || kind === "aborted") return;
+          setLastError({
+            code: `stt_${kind}`,
+            message: `Voice input failed (${kind}).`,
+            recoverable: true,
+          });
+        };
+        rec.onend = () => {
+          continuousRecRef.current = null;
+          // Auto-restart unless muted-off or disabled.
+          if (continuousListening && !isSpeakingRef.current) {
+            setTimeout(startRec, 250);
+          }
+        };
+        // Open mic for level meter.
+        setMicListening(true);
+        try {
+          navigator.mediaDevices
+            ?.getUserMedia({
+              audio: inputDeviceId
+                ? { deviceId: { exact: inputDeviceId } }
+                : true,
+            })
+            .then((s) => s.getTracks().forEach((t) => t.stop()))
+            .catch(() => undefined);
+        } catch {
+          // ignore
+        }
+        rec.start();
+      } catch {
+        continuousRecRef.current = null;
+      }
+    };
+
+    continuousStartRef.current = startRec;
+    startRec();
+
     return () => {
-      window.removeEventListener("jarvis:focus-input", focusInput);
-      window.removeEventListener("jarvis:push-to-talk", ptt);
+      if (continuousRecRef.current) {
+        try {
+          continuousRecRef.current.stop?.();
+        } catch {
+          // ignore
+        }
+        continuousRecRef.current = null;
+      }
+      if (silenceTimerRef.current) {
+        clearTimeout(silenceTimerRef.current);
+        silenceTimerRef.current = null;
+      }
+      setMicListening(false);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onSendMessage]);
+  }, [continuousListening]);
+
+  // Pause/resume continuous listening around assistant speech.
+  useEffect(() => {
+    if (!continuousListening) return;
+    isSpeakingRef.current = state === "speaking" || state === "thinking";
+    if (isSpeakingRef.current && continuousRecRef.current) {
+      try {
+        continuousRecRef.current.stop?.();
+      } catch {
+        // ignore
+      }
+      continuousRecRef.current = null;
+    } else if (!isSpeakingRef.current && !continuousRecRef.current) {
+      // restart after speech ends
+      const t = setTimeout(() => {
+        continuousStartRef.current?.();
+      }, 400);
+      return () => clearTimeout(t);
+    }
+  }, [state, continuousListening]);
+
+  // Speak reply only if not muted.
+  // (handled in handleSend's speak block — but handleSend is in App.
+  //  We'll gate speaking via a global. For now, store.muted is read in App.)
 
   const requestMicPermission = async () => {
     try {
@@ -392,6 +568,22 @@ export function BottomDock({
 
       {/* Right: stop + privacy + panel toggle */}
       <div className="flex items-center gap-2">
+        <Button
+          variant={continuousListening ? "primary" : "ghost"}
+          size="sm"
+          onClick={() => setContinuousListening(!continuousListening)}
+          title="Toggle hands-free listening"
+        >
+          {continuousListening ? "HF on" : "HF off"}
+        </Button>
+        <Button
+          variant={muted ? "danger" : "ghost"}
+          size="sm"
+          onClick={() => setMuted(!muted)}
+          title="Mute/unmute voice output"
+        >
+          {muted ? "Muted" : "Mute"}
+        </Button>
         <span
           className={`text-xs font-medium ${
             isListening ? "text-accent-cyan" : "text-surface-panel"
