@@ -463,8 +463,7 @@ export function BottomDock({
   const continuousStartRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
-    if (!continuousListening || muted) {
-      // Stop any running continuous recognition.
+    if (!continuousListening || muted || !browserSttEnabled) {
       if (continuousRecRef.current) {
         try {
           continuousRecRef.current.stop?.();
@@ -482,6 +481,9 @@ export function BottomDock({
         continuousRestartTimerRef.current = null;
       }
       setMicListening(false);
+      if (continuousListening && !browserSttEnabled) {
+        setContinuousListening(false);
+      }
       return;
     }
 
@@ -568,12 +570,6 @@ export function BottomDock({
           const kind = ev?.error ?? "unknown";
           if (kind === "no-speech" || kind === "aborted") return;
           if (kind === "network") {
-            setLastError({
-              code: "stt_network",
-              message:
-                "Browser voice recognition needs an internet connection. Disable it in Settings → Voice or use typed input.",
-              recoverable: true,
-            });
             setBrowserSttEnabled(false);
             return;
           }
@@ -632,7 +628,7 @@ export function BottomDock({
       setMicListening(false);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [continuousListening, muted]);
+  }, [continuousListening, muted, browserSttEnabled]);
 
   // Pause/resume continuous listening around assistant speech.
   useEffect(() => {
@@ -746,8 +742,13 @@ export function BottomDock({
         <Button
           variant={continuousListening ? "primary" : "ghost"}
           size="sm"
+          disabled={!browserSttEnabled}
           onClick={() => setContinuousListening(!continuousListening)}
-          title="Toggle hands-free listening"
+          title={
+            browserSttEnabled
+              ? "Toggle hands-free listening"
+              : "Hands-free needs browser STT (internet). Use push-to-talk (offline) instead."
+          }
         >
           {continuousListening ? "HF on" : "HF off"}
         </Button>
