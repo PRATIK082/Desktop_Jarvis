@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useAssistantStore } from "../../stores/assistant";
 import { VoiceOrb } from "../voice/VoiceOrb";
 
@@ -31,13 +31,23 @@ const NAV_ITEMS: { id: string; label: string; icon: string }[] = [
   { id: "settings", label: "Settings", icon: "⚙️" },
 ];
 
+import { useLayoutPrefs } from "../../hooks/useLayoutPrefs";
+
 export function LeftNav() {
   const { activeScreen, setActiveScreen, ollamaHealthy, micEnabled } =
     useAssistantStore();
+  const { prefs } = useLayoutPrefs();
+  const collapsed = prefs.navCollapsed;
 
   return (
     <nav
-      className="fixed left-0 top-0 bottom-0 w-64 bg-surface-graphite border-r border-surface-panel z-20 flex flex-col"
+      className={`fixed left-0 top-0 bottom-0 z-20 flex flex-col border-r border-surface-panel transition-[width] duration-150 ${
+        collapsed ? "w-16" : "w-64"
+      }`}
+      style={{
+        backgroundColor: `rgba(30, 41, 59, ${prefs.panelOpacity})`,
+        backdropFilter: prefs.panelOpacity < 0.95 ? "blur(8px)" : undefined,
+      }}
       aria-label="Main navigation"
     >
       <div className="p-4 border-b border-surface-panel">
@@ -45,7 +55,9 @@ export function LeftNav() {
           <div className="w-8 h-8 rounded-lg bg-accent-cyan/20 flex items-center justify-center text-accent-cyan font-bold">
             J
           </div>
-          <span className="font-semibold text-light text-sm">JARVIS</span>
+          {!collapsed && (
+            <span className="font-semibold text-light text-sm">JARVIS</span>
+          )}
         </div>
       </div>
 
@@ -56,15 +68,16 @@ export function LeftNav() {
             <button
               key={item.id}
               onClick={() => setActiveScreen(item.id as any)}
+              title={collapsed ? item.label : undefined}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
                 active
                   ? "bg-accent-cyan/20 text-accent-cyan"
                   : "text-surface-panel hover:bg-surface-panel hover:text-light"
-              }`}
+              } ${collapsed ? "justify-center" : ""}`}
               aria-pressed={active}
             >
               <span className="w-5 text-center">{item.icon}</span>
-              <span>{item.label}</span>
+              {!collapsed && <span>{item.label}</span>}
             </button>
           );
         })}
@@ -478,13 +491,49 @@ function MicButtonDock({
 
 export function RightPanel() {
   const { sidePanelOpen, state, latencyMetrics } = useAssistantStore();
+  const { prefs, update } = useLayoutPrefs();
+  const [dragging, setDragging] = useState(false);
+
   if (!sidePanelOpen) return null;
+
+  const startDrag = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setDragging(true);
+    const startX = e.clientX;
+    const startWidth = prefs.rightPanelWidth;
+    const onMove = (ev: PointerEvent) => {
+      const next = startWidth + (startX - ev.clientX);
+      update({ rightPanelWidth: Math.min(520, Math.max(240, next)) });
+    };
+    const onUp = () => {
+      setDragging(false);
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  };
 
   return (
     <aside
-      className="fixed right-0 top-0 bottom-0 w-80 bg-surface-graphite border-l border-surface-panel z-20 flex flex-col"
+      className="fixed right-0 top-0 bottom-0 z-20 flex flex-col border-l border-surface-panel"
+      style={{
+        width: prefs.rightPanelWidth,
+        backgroundColor: `rgba(30, 41, 59, ${prefs.panelOpacity})`,
+        backdropFilter: prefs.panelOpacity < 0.95 ? "blur(8px)" : undefined,
+      }}
       aria-label="Context panel"
     >
+      {/* Resize handle */}
+      <div
+        onPointerDown={startDrag}
+        className={`absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-accent-cyan/40 ${
+          dragging ? "bg-accent-cyan/60" : ""
+        }`}
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize context panel"
+      />
       <div className="p-4 border-b border-surface-panel">
         <h2 className="text-sm font-semibold text-light">Context</h2>
         <p className="text-xs text-surface-panel">{state} state</p>

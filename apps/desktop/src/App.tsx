@@ -15,6 +15,7 @@ import { Button } from "./components/common/Button";
 import { Badge } from "./components/common/Badge";
 import type { AssistantEvent } from "../../../packages/contracts/src/index.ts";
 import { useAudioLevel } from "./hooks/useAudioLevel";
+import { useLayoutPrefs } from "./hooks/useLayoutPrefs";
 import {
   ACCENT_PRESETS,
   applyAccent,
@@ -60,6 +61,7 @@ export default function App() {
   // Drives store.audioLevel: live mic RMS while listening, synthetic
   // pulse while speaking/thinking, decay to 0 when idle.
   useAudioLevel();
+  const { prefs: layoutPrefs } = useLayoutPrefs();
 
   // Apply the persisted HUD accent (Settings → Appearance) once on mount.
   useEffect(() => {
@@ -437,7 +439,9 @@ export default function App() {
       {/* Main content area */}
       <main
         id="main-content"
-        className="flex-1 p-6 md:pl-64 relative min-h-[calc(100vh-80px)] pb-24"
+        className={`flex-1 p-6 relative min-h-[calc(100vh-80px)] pb-24 ${
+          layoutPrefs.navCollapsed ? "md:pl-16" : "md:pl-64"
+        }`}
         role="main"
         aria-label="Main content"
       >
@@ -855,6 +859,7 @@ function SettingsScreen() {
     reducedMotion,
     setReducedMotion,
   } = useAssistantStore();
+  const { prefs: layoutPrefs, update: updateLayout } = useLayoutPrefs();
   const [accentSelection, setAccentSelection] = useState<AccentSelection>(
     () => loadAccent(),
   );
@@ -961,6 +966,60 @@ function SettingsScreen() {
               checked={reducedMotion}
               onChange={(e) => setReducedMotion(e.target.checked)}
               aria-label="Reduced motion"
+            />
+          </label>
+        </div>
+      </Card>
+      <Card>
+        <CardHeader title="Layout" subtitle="Adaptive workspace" />
+        <div className="p-4 space-y-3 text-sm">
+          <label className="flex items-center justify-between gap-4">
+            <span className="text-light">
+              Collapse navigation
+              <span className="block text-xs text-surface-panel">
+                Icon-only sidebar for more workspace.
+              </span>
+            </span>
+            <input
+              type="checkbox"
+              checked={layoutPrefs.navCollapsed}
+              onChange={(e) =>
+                updateLayout({ navCollapsed: e.target.checked })
+              }
+              aria-label="Collapse navigation"
+            />
+          </label>
+          <label className="flex items-center justify-between gap-4">
+            <span className="text-light">
+              Compact mode
+              <span className="block text-xs text-surface-panel">
+                Tighter spacing throughout the UI.
+              </span>
+            </span>
+            <input
+              type="checkbox"
+              checked={layoutPrefs.compact}
+              onChange={(e) => updateLayout({ compact: e.target.checked })}
+              aria-label="Compact mode"
+            />
+          </label>
+          <label className="flex flex-col gap-2">
+            <span className="text-light">
+              Panel transparency
+              <span className="block text-xs text-surface-panel">
+                Glass effect for side panels (
+                {Math.round(layoutPrefs.panelOpacity * 100)}%).
+              </span>
+            </span>
+            <input
+              type="range"
+              min={40}
+              max={100}
+              value={Math.round(layoutPrefs.panelOpacity * 100)}
+              onChange={(e) =>
+                updateLayout({ panelOpacity: Number(e.target.value) / 100 })
+              }
+              aria-label="Panel transparency"
             />
           </label>
         </div>
