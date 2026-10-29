@@ -200,6 +200,8 @@ export function BottomDock({
     micPermissionGranted,
     selectedModel,
     sidecarConnected,
+    sidecarUrl,
+    authToken,
     sidePanelOpen,
     setSidePanelOpen,
     setMicPermissionGranted,
@@ -228,7 +230,11 @@ export function BottomDock({
   // Result transcript is bridged straight into onSendMessage so voice turns
   // work end-to-end today; local faster-whisper can replace this later.
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recordedChunksRef = useRef<Blob[]>([]);
+  const recordingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isListeningSTT, setIsListeningSTT] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
 
   const startListening = async () => {
     const w = window as unknown as {
@@ -335,15 +341,122 @@ export function BottomDock({
     }
   };
 
+  // ── Offline STT: record via MediaRecorder → sidecar /v1/transcribe ──
+  const startRecording = async () => {
+    if (isRecording) return;
+    if (!sidecarUrl || !authToken) {
+      setLastError({
+        code: "sidecar_disconnected",
+        message: "Sidecar is not connected yet.",
+        recoverable: true,
+      });
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: inputDeviceId ? { deviceId: { exact: inputDeviceId } } : true,
+      });
+      setMicPermissionGranted(true);
+      recordedChunksRef.current = [];
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm")
+        ? "audio/webm"
+        : MediaRecorder.isTypeSupported("audio/mp4")
+          ? "audio/mp4"
+          : "";
+      const mr = new MediaRecorder(
+        stream,
+        mimeType ? { mimeType } : undefined,
+      );
+      mediaRecorderRef.current = mr;
+      const blobType = mimeType || "audio/webm";
+      mr.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) recordedChunksRef.current.push(e.data);
+      };
+      mr.onstop = async () => {
+        stream.getTracks().forEach((t) => t.stop());
+        mediaRecorderRef.current = null;
+        setIsRecording(false);
+        setMicListening(false);
+        const blob = new Blob(recordedChunksRef.current, { type: blobType });
+        recordedChunksRef.current = [];
+        const suffix = blobType === "audio/mp4" ? ".mp4" : ".webm";
+        if (blob.size < 1000) {
+          setLastError({
+            code: "heard_nothing",
+            message: "Recording too short — hold the mic longer.",
+            recoverable: true,
+          });
+          return;
+        }
+        try {
+          const form = new FormData();
+          form.append("file", blob, `audio${suffix}`);
+          const res = await fetch(`${sidecarUrl}/v1/transcribe`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${authToken}` },
+            body: form,
+          });
+          if (!res.ok) throw new Error(`transcribe HTTP ${res.status}`);
+          const data = await res.json();
+          const text = typeof data.text === "string" ? data.text.trim() : "";
+          if (text) {
+            onSendMessage(text);
+          } else {
+            setLastError({
+              code: "heard_nothing",
+              message:
+                (typeof data.error === "string" && data.error) ||
+                "No speech detected. Try again or use typed input.",
+              recoverable: true,
+            });
+          }
+        } catch (err) {
+          setLastError({
+            code: "stt_failed",
+            message: `Transcription failed: ${err}`,
+            recoverable: true,
+          });
+        }
+      };
+      mr.start();
+      setIsRecording(true);
+      setMicListening(true);
+      if (recordingTimerRef.current) clearTimeout(recordingTimerRef.current);
+      recordingTimerRef.current = setTimeout(() => {
+        if (mediaRecorderRef.current?.state === "recording") {
+          mediaRecorderRef.current.stop();
+        }
+      }, 15000);
+    } catch (err) {
+      setMicPermissionGranted(false);
+      setLastError({
+        code: "mic_access_failed",
+        message: `Could not access microphone: ${err}`,
+        recoverable: true,
+      });
+    }
+  };
+
+  const stopRecording = () => {
+    if (recordingTimerRef.current) {
+      clearTimeout(recordingTimerRef.current);
+      recordingTimerRef.current = null;
+    }
+    if (mediaRecorderRef.current?.state === "recording") {
+      mediaRecorderRef.current.stop();
+    }
+  };
+
   // Continuous (hands-free) listening mode.
   const continuousRecRef = useRef<SpeechRecognitionInstance | null>(null);
   const accumulatedRef = useRef<string>("");
   const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const continuousRestartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isSpeakingRef = useRef(false);
   const continuousStartRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
-    if (!continuousListening) {
+    if (!continuousListening || muted) {
       // Stop any running continuous recognition.
       if (continuousRecRef.current) {
         try {
@@ -357,6 +470,11 @@ export function BottomDock({
         clearTimeout(silenceTimerRef.current);
         silenceTimerRef.current = null;
       }
+      if (continuousRestartTimerRef.current) {
+        clearTimeout(continuousRestartTimerRef.current);
+        continuousRestartTimerRef.current = null;
+      }
+      setMicListening(false);
       return;
     }
 
@@ -461,8 +579,11 @@ export function BottomDock({
         rec.onend = () => {
           continuousRecRef.current = null;
           // Auto-restart unless muted-off or disabled.
-          if (continuousListening && !isSpeakingRef.current) {
-            setTimeout(startRec, 250);
+          if (continuousListening && !muted && !isSpeakingRef.current) {
+            if (continuousRestartTimerRef.current) {
+              clearTimeout(continuousRestartTimerRef.current);
+            }
+            continuousRestartTimerRef.current = setTimeout(startRec, 250);
           }
         };
         // Open mic for level meter.
@@ -504,7 +625,7 @@ export function BottomDock({
       setMicListening(false);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [continuousListening]);
+  }, [continuousListening, muted]);
 
   // Pause/resume continuous listening around assistant speech.
   useEffect(() => {
@@ -553,14 +674,29 @@ export function BottomDock({
       {/* Left: mic controls */}
       <div className="flex items-center gap-3">
         <MicButtonDock
-          onPress={startListening}
-          onRelease={() => {}}
-          onClick={() => {
-            if (!micPermissionGranted) void requestMicPermission();
-            else if (!isListeningSTT) startListening();
+          onPress={() => {
+            if (browserSttEnabled) void startListening();
+            else void startRecording();
           }}
-          disabled={isListeningSTT}
-          listening={isListeningSTT}
+          onRelease={() => {
+            if (!browserSttEnabled) stopRecording();
+          }}
+          onClick={() => {
+            if (muted) {
+              setLastError({
+                code: "muted",
+                message: "Microphone is muted. Click Mute to unmute.",
+                recoverable: true,
+              });
+              return;
+            }
+            if (!micPermissionGranted) void requestMicPermission();
+            else if (isRecording) stopRecording();
+            else if (browserSttEnabled) void startListening();
+            else void startRecording();
+          }}
+          disabled={muted || isListeningSTT}
+          listening={isListeningSTT || isRecording}
         />
       </div>
 

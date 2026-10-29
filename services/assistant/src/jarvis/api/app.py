@@ -22,8 +22,10 @@ import threading
 from fastapi import (
     Depends,
     FastAPI,
+    File,
     Header,
     HTTPException,
+    UploadFile,
     WebSocket,
     WebSocketDisconnect,
     status,
@@ -53,6 +55,7 @@ _ollama_client: OllamaClient | None = None  # noqa: PLW0603 — module-level sin
 _registry: ToolRegistry | None = None  # noqa: PLW0603 — module-level singleton
 _policy: PolicyEngine | None = None  # noqa: PLW0603 — module-level singleton
 _orchestrator: Orchestrator | None = None  # noqa: PLW0603 — module-level singleton
+_stt_provider: object | None = None  # noqa: PLW0603 — module-level singleton
 
 
 class ChatRequest(BaseModel):
@@ -102,6 +105,18 @@ def _get_orchestrator() -> Orchestrator:
     return _orchestrator
 
 
+def _get_stt() -> object | None:
+    global _stt_provider  # noqa: PLW0603 — module-level singleton
+    if _stt_provider is None:
+        try:
+            from jarvis.audio.providers import FasterWhisperSTT  # noqa: PLC0415
+
+            _stt_provider = FasterWhisperSTT(model_name=settings.stt_model)
+        except Exception:  # noqa: BLE001 — STT is optional
+            _stt_provider = None
+    return _stt_provider
+
+
 def _verify_token(authorization: str | None) -> None:
     token = _bearer(authorization)
     if token != settings.auth_token:
@@ -145,6 +160,7 @@ def create_app() -> FastAPI:
     _configure_events(app)
     _configure_chat(app)
     _configure_models(app)
+    _configure_transcribe(app)
     _configure_shutdown(app)
     _configure_restart(app)
     _configure_logs(app)
@@ -364,6 +380,39 @@ def _configure_models(app: FastAPI) -> None:
             )
         settings.ollama_chat_model = name
         return {"status": "ok", "selected": name}
+
+
+def _configure_transcribe(app: FastAPI) -> None:
+    @app.post("/v1/transcribe")
+    async def transcribe(
+        token: str | None = Depends(_auth_token),
+        file: UploadFile = File(...),
+    ) -> dict[str, object]:
+        _verify_token(token)
+        stt = _get_stt()
+        if stt is None:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="STT provider not available",
+            )
+        try:
+            audio = await file.read()
+        except Exception as exc:  # noqa: BLE001 — read failure is non-fatal
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"could not read audio: {exc}",
+            ) from exc
+        if not audio:
+            return {"text": "", "ok": False, "error": "empty audio"}
+        suffix = os.path.splitext(file.filename or "")[1] or ".webm"
+        text = await stt.transcribe_audio(audio, suffix=suffix)  # type: ignore[attr-defined]
+        if not text.strip():
+            return {
+                "text": "",
+                "ok": False,
+                "error": "no speech detected — check microphone and speak clearly",
+            }
+        return {"text": text.strip(), "ok": True, "error": None}
 
 
 def _configure_shutdown(app: FastAPI) -> None:

@@ -24,6 +24,11 @@ except ImportError:  # pragma: no cover — faster-whisper optional
     WhisperModel = None
 
 try:
+    import av as _av
+except ImportError:  # pragma: no cover — av optional (pulled by faster-whisper)
+    _av = None  # type: ignore[assignment]
+
+try:
     import piper as _piper
 except ImportError:  # pragma: no cover — piper optional
     _piper = None
@@ -107,6 +112,103 @@ class FasterWhisperSTT:
         text = await asyncio.to_thread(self._transcribe, audio)
         if text.strip():
             yield text
+
+    async def transcribe_audio(self, audio: bytes, suffix: str = ".webm") -> str:
+        """Transcribe a complete audio blob (any format av can decode).
+
+        Writes the blob to a temp file and lets faster-whisper/av decode
+        it. Returns the transcript text (empty string on failure).
+        """
+        if not audio:
+            return ""
+        ready = await asyncio.to_thread(self._ensure_loaded)
+        if not ready:
+            return ""
+        import os
+        import tempfile
+
+        fd, path = tempfile.mkstemp(suffix=suffix)
+        try:
+            with os.fdopen(fd, "wb") as f:
+                f.write(audio)
+            text = await asyncio.to_thread(self._transcribe_file, path)
+            return text
+        finally:
+            try:
+                os.unlink(path)
+            except OSError:
+                pass
+
+    def _transcribe_file(self, path: str) -> str:
+        """Blocking transcription of an audio file path.
+
+        Decodes the audio with PyAV into a 16 kHz mono float32 PCM array
+        and feeds that to faster-whisper, avoiding faster-whisper's own
+        av.open(..., metadata_errors=...) call which is incompatible with
+        the installed PyAV version.
+        """
+        if self._model is None:
+            return ""
+        try:
+            samples = self._decode_audio_to_pcm(path)
+            if samples is None or len(samples) == 0:
+                log_event(
+                    "jarvis.audio.providers",
+                    "faster_whisper_transcribe_failed",
+                    level="warn",
+                    details={"error": "no audio samples decoded", "path": path},
+                )
+                return ""
+            duration_s = len(samples) / 16000.0
+            segments, _ = self._model.transcribe(
+                samples, language=settings.stt_language
+            )
+            text = "".join(seg.text for seg in segments)
+            log_event(
+                "jarvis.audio.providers",
+                "faster_whisper_transcribed",
+                level="info",
+                details={"chars": len(text), "duration_s": round(duration_s, 2)},
+            )
+            return text
+        except Exception as exc:  # noqa: BLE001 — transcription failure is non-fatal
+            log_event(
+                "jarvis.audio.providers",
+                "faster_whisper_transcribe_failed",
+                level="warn",
+                details={"error": str(exc)},
+            )
+            return ""
+
+    def _decode_audio_to_pcm(self, path: str) -> Any:
+        """Decode an audio file to a 16 kHz mono float32 numpy array."""
+        if _av is None or _np is None:
+            return None
+        try:
+            container = _av.open(path)
+            stream = container.streams.audio[0]
+            resampler = _av.AudioResampler(
+                format="fltp", layout="mono", rate=16000
+            )
+            chunks: list[Any] = []
+            for frame in container.decode(stream):
+                for resampled in resampler.resample(frame):
+                    arr = resampled.to_ndarray()
+                    if arr.ndim > 1:
+                        arr = arr[0]
+                    chunks.append(arr)
+            container.close()
+            if not chunks:
+                return None
+            return _np.concatenate(chunks).astype(_np.float32)
+        except Exception as exc:  # noqa: BLE001
+            log_event(
+                "jarvis.audio.providers",
+                "audio_decode_failed",
+                level="warn",
+                details={"error": str(exc)},
+            )
+            return None
 
     def _transcribe(self, audio: bytes) -> str:
         """Blocking transcription of raw 16-bit PCM audio."""
