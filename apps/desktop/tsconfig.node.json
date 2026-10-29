@@ -1,0 +1,7 @@
+{
+  "extends": "@jarvis/desktop/tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false
+  },
+  "include": ["vite.config.ts", "vitest.config.*"]
+}

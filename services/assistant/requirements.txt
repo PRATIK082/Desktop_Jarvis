@@ -1,0 +1,20 @@
+# JARVIS sidecar — Python dependencies
+# Pin important versions for reproducible installs.
+
+fastapi>=0.115.0,<0.116.0
+uvicorn>=0.32.0,<0.33.0
+pydantic>=2.10.0,<3.0.0
+pydantic-settings>=2.4.0,<3.0.0
+httpx>=0.27.0,<0.28.0
+pytest>=8.0.0
+pytest-asyncio>=0.24.0
+mypy>=1.11.0
+ruff>=0.9.0
+
+# Runtime providers (installed in venv):
+# faster-whisper 1.2.1 (CPU STT) + piper-tts 1.8.0 (neural TTS).
+# NOTE: first STT/TTS use downloads models from HuggingFace Hub
+# (~150MB whisper base). If HF Hub is unreachable, providers report
+# installed=true but models unavailable; app degrades gracefully.
+faster-whisper==1.2.1
+piper-tts==1.8.0

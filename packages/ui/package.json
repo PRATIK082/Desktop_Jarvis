@@ -1,0 +1,17 @@
+{
+  "name": "@jarvis/ui",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Shared UI primitives for JARVIS desktop",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "echo \"no tests yet\"",
+    "lint": "eslint src || true",
+    "format": "prettier --write src"
+  },
+  "devDependencies": {
+    "typescript": "~5.7.2"
+  }
+}

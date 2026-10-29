@@ -1,0 +1,29 @@
+{
+  "$schema": "https://tauri.app/v2/assets/js/config.schema.json",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build",
+    "devUrl": "http://127.0.0.1:5173",
+    "frontendDist": "../dist"
+  },
+  "productName": "JARVIS Desktop",
+  "version": "0.1.0",
+  "identifier": "com.jarvis.desktop",
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": ["icons/icon.ico"]
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "JARVIS Desktop",
+        "width": 1200,
+        "height": 800,
+        "resizable": true,
+        "fullscreen": false
+      }
+    ]
+  }
+}
