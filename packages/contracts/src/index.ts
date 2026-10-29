@@ -24,8 +24,8 @@ export type AssistantState = (typeof AssistantState)[keyof typeof AssistantState
 
 export interface StateTransitionEvent {
   type: "state_transition";
-  from: AssistantState;
-  to: AssistantState;
+  from_state: AssistantState;
+  to_state: AssistantState;
   timestamp: string;
   request_id?: string;
 }

@@ -154,7 +154,7 @@ export function TelemetryHeader({
       </div>
       <div className="flex flex-wrap items-center gap-2 text-xs">
         <Badge variant={isListeningState(state) ? "ok" : "idle"}>
-          {state.replace(/_/g, " ")}
+          {(state ?? "idle").replace(/_/g, " ")}
         </Badge>
         <Badge variant={sidecarConnected ? "ok" : "error"}>
           {sidecarConnected ? "sidecar" : "no sidecar"}
@@ -397,7 +397,7 @@ export function BottomDock({
             isListening ? "text-accent-cyan" : "text-surface-panel"
           }`}
         >
-          {state
+          {(state ?? "idle")
             .replace(/_/g, " ")
             .replace(/\b\w/g, (c: string) => c.toUpperCase())}
         </span>
@@ -634,7 +634,7 @@ export function HomeDashboard() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <StatusTile
             label="State"
-            value={state.replace(/_/g, " ")}
+            value={(state ?? "idle").replace(/_/g, " ")}
             variant="info"
           />
           <StatusTile

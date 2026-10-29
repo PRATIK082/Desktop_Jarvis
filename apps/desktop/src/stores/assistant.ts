@@ -271,7 +271,10 @@ export const useAssistantStore = create<AssistantStore>((set, get) => ({
     const state = get();
     switch (event.type) {
       case "state_transition":
-        set({ state: event.to, previousState: state.state });
+        set({
+          state: (event.to_state ?? "idle") as AssistantStateStrict,
+          previousState: state.state,
+        });
         break;
       case "transcript":
         if (event.role === "user" && event.is_final) {
