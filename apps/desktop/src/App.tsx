@@ -862,10 +862,14 @@ function SettingsScreen() {
     micEnabled,
     setMicEnabled,
     micPermissionGranted,
+    setMicPermissionGranted,
     reducedMotion,
     setReducedMotion,
+    inputDeviceId,
+    setInputDeviceId,
   } = useAssistantStore();
   const { prefs: layoutPrefs, update: updateLayout } = useLayoutPrefs();
+  const [micDevices, setMicDevices] = useState<MediaDeviceInfo[]>([]);
   const [accentSelection, setAccentSelection] = useState<AccentSelection>(
     () => loadAccent(),
   );
@@ -873,6 +877,40 @@ function SettingsScreen() {
     setAccentSelection(next);
     applyAccent(next);
   };
+
+  // Enumerate input devices once permission is granted.
+  useEffect(() => {
+    if (!micPermissionGranted) return;
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const devs = await navigator.mediaDevices.enumerateDevices();
+        if (cancelled) return;
+        setMicDevices(devs.filter((d) => d.kind === "audioinput"));
+      } catch {
+        // ignore
+      }
+    };
+    void load();
+    navigator.mediaDevices?.addEventListener?.("devicechange", load);
+    return () => {
+      cancelled = true;
+      navigator.mediaDevices?.removeEventListener?.("devicechange", load);
+    };
+  }, [micPermissionGranted]);
+
+  // Persist selected mic to localStorage.
+  useEffect(() => {
+    try {
+      if (inputDeviceId) {
+        window.localStorage.setItem("jarvis.inputDeviceId", inputDeviceId);
+      } else {
+        window.localStorage.removeItem("jarvis.inputDeviceId");
+      }
+    } catch {
+      // ignore
+    }
+  }, [inputDeviceId]);
   return (
     <div className="space-y-4">
       <Card>
@@ -1028,6 +1066,62 @@ function SettingsScreen() {
               aria-label="Panel transparency"
             />
           </label>
+        </div>
+      </Card>
+      <Card>
+        <CardHeader title="Microphone" subtitle="Input device selection" />
+        <div className="p-4 space-y-3 text-sm">
+          {!micPermissionGranted && (
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={async () => {
+                try {
+                  const stream = await navigator.mediaDevices.getUserMedia({
+                    audio: true,
+                  });
+                  stream.getTracks().forEach((t) => t.stop());
+                  setMicPermissionGranted(true);
+                } catch {
+                  setMicPermissionGranted(false);
+                }
+              }}
+            >
+              Grant microphone access
+            </Button>
+          )}
+          {micPermissionGranted && (
+            <>
+              <label className="flex flex-col gap-2">
+                <span className="text-light">
+                  Input device
+                  <span className="block text-xs text-surface-panel">
+                    Used for the audio meter and speech recognition.
+                  </span>
+                </span>
+                <select
+                  className="rounded-lg border border-surface-panel bg-surface-deep py-2 px-3 text-sm text-light"
+                  value={inputDeviceId ?? ""}
+                  onChange={(e) =>
+                    setInputDeviceId(e.target.value || null)
+                  }
+                  aria-label="Input device"
+                >
+                  <option value="">System default</option>
+                  {micDevices.map((d) => (
+                    <option key={d.deviceId} value={d.deviceId}>
+                      {d.label || `Microphone ${d.deviceId.slice(0, 6)}`}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {micDevices.length === 0 && (
+                <p className="text-xs text-surface-panel">
+                  No devices listed yet — grant access above.
+                </p>
+              )}
+            </>
+          )}
         </div>
       </Card>
       <Card>

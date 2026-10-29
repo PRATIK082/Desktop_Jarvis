@@ -30,6 +30,8 @@ export function useAudioLevel() {
   const state = useAssistantStore((s) => s.state);
   const micPermissionGranted = useAssistantStore((s) => s.micPermissionGranted);
   const reducedMotion = useAssistantStore((s) => s.reducedMotion);
+  const inputDeviceId = useAssistantStore((s) => s.inputDeviceId);
+  const micListening = useAssistantStore((s) => s.micListening);
 
   useEffect(() => {
     const { setAudioLevel } = useAssistantStore.getState();
@@ -52,15 +54,21 @@ export function useAudioLevel() {
       ctx = null;
     };
 
-    if (LISTENING_STATES.has(state) && micPermissionGranted) {
+    const listening = LISTENING_STATES.has(state) || micListening;
+    if (listening && micPermissionGranted) {
       if (!navigator.mediaDevices?.getUserMedia) {
         setAudioLevel(0);
         return teardown;
       }
       let smoothed = 0;
       let lastPush = 0;
+      const constraints: MediaStreamConstraints = {
+        audio: inputDeviceId
+          ? { deviceId: { exact: inputDeviceId } }
+          : true,
+      };
       navigator.mediaDevices
-        .getUserMedia({ audio: true })
+        .getUserMedia(constraints)
         .then((s) => {
           if (stopped) {
             s.getTracks().forEach((t) => t.stop());
@@ -111,5 +119,5 @@ export function useAudioLevel() {
 
     setAudioLevel(0);
     return teardown;
-  }, [state, micPermissionGranted, reducedMotion]);
+  }, [state, micPermissionGranted, reducedMotion, inputDeviceId, micListening]);
 }

@@ -204,6 +204,8 @@ export function BottomDock({
     setMicPermissionGranted,
     setMicEnabled,
     setLastError,
+    inputDeviceId,
+    setMicListening,
   } = useAssistantStore();
 
   const isListening =
@@ -221,7 +223,7 @@ export function BottomDock({
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
   const [isListeningSTT, setIsListeningSTT] = useState(false);
 
-  const startListening = () => {
+  const startListening = async () => {
     const w = window as unknown as {
       SpeechRecognition?: new () => SpeechRecognitionInstance;
       webkitSpeechRecognition?: new () => SpeechRecognitionInstance;
@@ -248,6 +250,17 @@ export function BottomDock({
     } catch {
       // Speech synthesis unavailable; continue to recognition.
     }
+    // Open the selected mic for the audio-level meter + permission.
+    try {
+      const stream = await navigator.mediaDevices?.getUserMedia({
+        audio: inputDeviceId ? { deviceId: { exact: inputDeviceId } } : true,
+      });
+      stream?.getTracks().forEach((t) => t.stop());
+      setMicPermissionGranted(true);
+    } catch {
+      setMicPermissionGranted(false);
+    }
+    setMicListening(true);
     try {
       const rec = new SR();
       recognitionRef.current = rec;
@@ -262,7 +275,8 @@ export function BottomDock({
         else
           setLastError({
             code: "heard_nothing",
-            message: "Heard nothing — try speaking again.",
+            message:
+              "No speech detected. Check microphone selection in Settings → Microphone and try again.",
             recoverable: true,
           });
       };
@@ -284,11 +298,13 @@ export function BottomDock({
       rec.onend = () => {
         recognitionRef.current = null;
         setIsListeningSTT(false);
+        setMicListening(false);
       };
       rec.start();
     } catch {
       recognitionRef.current = null;
       setIsListeningSTT(false);
+      setMicListening(false);
       document.getElementById("jarvis-chat-input")?.focus();
     }
   };
@@ -337,6 +353,7 @@ export function BottomDock({
             else if (!isListeningSTT) startListening();
           }}
           disabled={isListeningSTT}
+          listening={isListeningSTT}
         />
       </div>
 
@@ -446,15 +463,20 @@ function MicButtonDock({
   onRelease,
   onClick,
   disabled,
+  listening = false,
 }: {
   onPress: () => void;
   onRelease: () => void;
   onClick: () => void;
   disabled: boolean;
+  listening?: boolean;
 }) {
   const { state, micPermissionGranted } = useAssistantStore();
   const isActive =
-    state === "recording" || state === "transcribing" || state === "speaking";
+    listening ||
+    state === "recording" ||
+    state === "transcribing" ||
+    state === "speaking";
 
   return (
     <button

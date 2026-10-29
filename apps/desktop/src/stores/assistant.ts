@@ -99,6 +99,8 @@ interface AssistantStore {
   setMicEnabled: (enabled: boolean) => void;
   micPermissionGranted: boolean;
   setMicPermissionGranted: (granted: boolean) => void;
+  micListening: boolean;
+  setMicListening: (listening: boolean) => void;
   audioLevel: number;
   setAudioLevel: (level: number) => void;
   inputDeviceId: string | null;
@@ -201,9 +203,17 @@ export const useAssistantStore = create<AssistantStore>((set, get) => ({
   setMicEnabled: (enabled) => set({ micEnabled: enabled }),
   micPermissionGranted: false,
   setMicPermissionGranted: (granted) => set({ micPermissionGranted: granted }),
+  micListening: false,
+  setMicListening: (listening) => set({ micListening: listening }),
   audioLevel: 0,
   setAudioLevel: (level) => set({ audioLevel: level }),
-  inputDeviceId: null,
+  inputDeviceId: ((): string | null => {
+    try {
+      return window.localStorage.getItem("jarvis.inputDeviceId");
+    } catch {
+      return null;
+    }
+  })(),
   setInputDeviceId: (id) => set({ inputDeviceId: id }),
   outputDeviceId: null,
   setOutputDeviceId: (id) => set({ outputDeviceId: id }),
