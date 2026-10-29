@@ -99,6 +99,8 @@ interface AssistantStore {
   setContinuousListening: (enabled: boolean) => void;
   browserSttEnabled: boolean;
   setBrowserSttEnabled: (enabled: boolean) => void;
+  dictationMode: boolean;
+  setDictationMode: (enabled: boolean) => void;
   muted: boolean;
   setMuted: (muted: boolean) => void;
 
@@ -220,6 +222,21 @@ export const useAssistantStore = create<AssistantStore>((set, get) => ({
     set({ browserSttEnabled: enabled });
     try {
       window.localStorage.setItem("jarvis.browserSttEnabled", String(enabled));
+    } catch {
+      // ignore
+    }
+  },
+  dictationMode: ((): boolean => {
+    try {
+      return window.localStorage.getItem("jarvis.dictationMode") === "true";
+    } catch {
+      return false;
+    }
+  })(),
+  setDictationMode: (enabled) => {
+    set({ dictationMode: enabled });
+    try {
+      window.localStorage.setItem("jarvis.dictationMode", String(enabled));
     } catch {
       // ignore
     }

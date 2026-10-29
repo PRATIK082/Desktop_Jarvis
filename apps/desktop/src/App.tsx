@@ -619,6 +619,21 @@ function ConversationsScreen() {
               >
                 {m.text}
               </span>
+              <button
+                type="button"
+                onClick={() => {
+                  try {
+                    navigator.clipboard?.writeText(m.text);
+                  } catch {
+                    // ignore
+                  }
+                }}
+                className="ml-2 text-xs text-surface-panel hover:text-accent-cyan"
+                title="Copy"
+                aria-label="Copy message text"
+              >
+                ⎘
+              </button>
             </div>
           ))
         )}
@@ -879,6 +894,8 @@ function SettingsScreen() {
     setInputDeviceId,
     browserSttEnabled,
     setBrowserSttEnabled,
+    dictationMode,
+    setDictationMode,
   } = useAssistantStore();
   const { prefs: layoutPrefs, update: updateLayout } = useLayoutPrefs();
   const [micDevices, setMicDevices] = useState<MediaDeviceInfo[]>([]);
@@ -1148,6 +1165,21 @@ function SettingsScreen() {
               )}
             </>
           )}
+          <label className="flex items-center justify-between gap-4">
+            <span className="text-light">
+              Dictation mode (voice → text)
+              <span className="block text-xs text-surface-panel">
+                Transcribed speech fills the input box instead of being sent
+                to the assistant. Copy the text anywhere.
+              </span>
+            </span>
+            <input
+              type="checkbox"
+              checked={dictationMode}
+              onChange={(e) => setDictationMode(e.target.checked)}
+              aria-label="Dictation mode"
+            />
+          </label>
         </div>
       </Card>
       <Card>

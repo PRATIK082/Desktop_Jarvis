@@ -216,6 +216,8 @@ export function BottomDock({
     browserSttEnabled,
     setBrowserSttEnabled,
     isSpeaking,
+    dictationMode,
+    setLiveTranscript,
   } = useAssistantStore();
 
   const isListening =
@@ -294,8 +296,14 @@ export function BottomDock({
       rec.onresult = (ev: SpeechRecognitionResultEvent) => {
         const transcript: string =
           ev?.results?.[0]?.[0]?.transcript ?? "";
-        if (transcript.trim()) onSendMessage(transcript.trim());
-        else
+        if (transcript.trim()) {
+          if (dictationMode) {
+            onInputChange(transcript.trim());
+            setLiveTranscript(transcript.trim());
+          } else {
+            onSendMessage(transcript.trim());
+          }
+        } else
           setLastError({
             code: "heard_nothing",
             message:
@@ -407,7 +415,12 @@ export function BottomDock({
           const data = await res.json();
           const text = typeof data.text === "string" ? data.text.trim() : "";
           if (text) {
-            onSendMessage(text);
+            if (dictationMode) {
+              onInputChange(text);
+              setLiveTranscript(text);
+            } else {
+              onSendMessage(text);
+            }
           } else {
             setLastError({
               code: "heard_nothing",
