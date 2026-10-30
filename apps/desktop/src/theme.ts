@@ -14,8 +14,18 @@ export interface AccentPreset {
 }
 
 export const ACCENT_PRESETS: AccentPreset[] = [
-  { id: "cyan", label: "Cyan", accent: [34, 211, 238], accent2: [59, 130, 246] },
-  { id: "blue", label: "Blue", accent: [96, 165, 250], accent2: [34, 211, 238] },
+  {
+    id: "cyan",
+    label: "Cyan",
+    accent: [34, 211, 238],
+    accent2: [59, 130, 246],
+  },
+  {
+    id: "blue",
+    label: "Blue",
+    accent: [96, 165, 250],
+    accent2: [34, 211, 238],
+  },
   {
     id: "violet",
     label: "Violet",
@@ -47,13 +57,9 @@ const STORAGE_KEY = "jarvis-accent";
 
 export const DEFAULT_ACCENT: AccentSelection = { preset: "cyan", hue: 187 };
 
-function hslToRgb(
-  h: number,
-  s: number,
-  l: number,
-): [number, number, number] {
+function hslToRgb(h: number, s: number, l: number): [number, number, number] {
   const c = ((1 - Math.abs(2 * l - 1)) * s) / 100;
-  const x = (c * (1 - Math.abs(((h / 60) % 2) - 1))) ;
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
   const m = l - c / 2;
   let r = 0;
   let g = 0;
@@ -108,10 +114,7 @@ export function applyAccent(sel: AccentSelection): void {
   if (typeof document === "undefined") return;
   const { accent, accent2 } = resolveAccent(sel);
   const root = document.documentElement;
-  root.style.setProperty(
-    "--accent",
-    `${accent[0]} ${accent[1]} ${accent[2]}`,
-  );
+  root.style.setProperty("--accent", `${accent[0]} ${accent[1]} ${accent[2]}`);
   root.style.setProperty(
     "--accent-2",
     `${accent2[0]} ${accent2[1]} ${accent2[2]}`,
@@ -134,10 +137,7 @@ export function loadAccent(): AccentSelection {
         : DEFAULT_ACCENT.hue;
     const preset =
       typeof parsed.preset === "string" ? parsed.preset : DEFAULT_ACCENT.preset;
-    if (
-      preset !== "custom" &&
-      !ACCENT_PRESETS.some((p) => p.id === preset)
-    ) {
+    if (preset !== "custom" && !ACCENT_PRESETS.some((p) => p.id === preset)) {
       return DEFAULT_ACCENT;
     }
     return { preset, hue };

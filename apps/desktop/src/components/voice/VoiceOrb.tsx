@@ -56,7 +56,12 @@ export function VoiceOrb({ className = "" }: VoiceOrbProps) {
     <div className={`relative flex flex-col items-center gap-2 ${className}`}>
       <div
         className={`voice-orb ${animationClass} ${borderColor} ${shadowColor}`}
-        style={{ width: levelSize, height: levelSize, transform: `scale(${scale.toFixed(3)})`, boxShadow: glow }}
+        style={{
+          width: levelSize,
+          height: levelSize,
+          transform: `scale(${scale.toFixed(3)})`,
+          boxShadow: glow,
+        }}
         role="status"
         aria-label={`JARVIS voice orb, state: ${state}`}
         aria-live="polite"

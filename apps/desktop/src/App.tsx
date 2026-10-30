@@ -96,9 +96,7 @@ export default function App() {
             }
             setHealth(data);
             // Surface engine + audio capability status for Models screen.
-            const engine = data?.engine as
-              | { active?: unknown }
-              | undefined;
+            const engine = data?.engine as { active?: unknown } | undefined;
             setEngineActive(
               typeof engine?.active === "string" ? engine.active : null,
             );
@@ -153,10 +151,7 @@ export default function App() {
             } else if (!selectedModel && names.length > 0) {
               // Auto-select: first non-embedding model, else first model.
               const chatModel =
-                names.find(
-                  (n) =>
-                    !/embed|bge-|nomic|e5-/i.test(n),
-                ) ?? names[0];
+                names.find((n) => !/embed|bge-|nomic|e5-/i.test(n)) ?? names[0];
               setSelectedModel(chatModel);
             }
           })
@@ -215,7 +210,8 @@ export default function App() {
     if (typeof window === "undefined" || !("__TAURI_INTERNALS__" in window)) {
       setLastError({
         code: "not_tauri",
-        message: "This app must be run inside the Tauri desktop window, not a browser.",
+        message:
+          "This app must be run inside the Tauri desktop window, not a browser.",
         recoverable: false,
       });
       return;
@@ -223,7 +219,11 @@ export default function App() {
     try {
       await invoke("start_sidecar");
       // After the sidecar is up, fetch its config (host/port/token).
-      const config = await invoke<{ host: string; port: number; auth_token: string }>("sidecar_config");
+      const config = await invoke<{
+        host: string;
+        port: number;
+        auth_token: string;
+      }>("sidecar_config");
       const url = `http://${config.host}:${config.port}`;
       if (typeof (window as any).__jarvisConnectSidecar === "function") {
         (window as any).__jarvisConnectSidecar(url, config.auth_token);
@@ -252,7 +252,9 @@ export default function App() {
     (async () => {
       try {
         if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          const stream = await navigator.mediaDevices.getUserMedia({
+            audio: true,
+          });
           // Permission granted — stop the stream immediately (we just needed permission).
           stream.getTracks().forEach((t) => t.stop());
           setMicPermissionGranted(true);
@@ -268,16 +270,20 @@ export default function App() {
 
   // Listen for Tauri-sidecar started events as a fallback bridge.
   useEffect(() => {
-    if (typeof window === "undefined" || !("__TAURI_INTERNALS__" in window)) return;
-    const unlisten = listen<{ url: string; token: string }>("sidecar:started", (event) => {
-      const payload = event.payload;
-      if (typeof (window as any).__jarvisConnectSidecar === "function") {
-        (window as any).__jarvisConnectSidecar(payload.url, payload.token);
-      } else {
-        setSidecarUrl(payload.url);
-        setAuthToken(payload.token);
-      }
-    });
+    if (typeof window === "undefined" || !("__TAURI_INTERNALS__" in window))
+      return;
+    const unlisten = listen<{ url: string; token: string }>(
+      "sidecar:started",
+      (event) => {
+        const payload = event.payload;
+        if (typeof (window as any).__jarvisConnectSidecar === "function") {
+          (window as any).__jarvisConnectSidecar(payload.url, payload.token);
+        } else {
+          setSidecarUrl(payload.url);
+          setAuthToken(payload.token);
+        }
+      },
+    );
     return () => {
       unlisten.then((u: () => void) => u());
     };
@@ -335,7 +341,8 @@ export default function App() {
         if (!sidecarUrl || !authToken) {
           setLastError({
             code: "sidecar_disconnected",
-            message: "Sidecar is not connected yet. Wait for “sidecar connected”.",
+            message:
+              "Sidecar is not connected yet. Wait for “sidecar connected”.",
             recoverable: true,
           });
           return;
@@ -719,8 +726,7 @@ function ModelsScreen() {
       const data = await res.json();
       const names: string[] = Array.isArray(data.models)
         ? data.models.filter(
-            (m: unknown): m is string =>
-              typeof m === "string" && m.length > 0,
+            (m: unknown): m is string => typeof m === "string" && m.length > 0,
           )
         : [];
       setInstalledModels(names);
@@ -899,8 +905,8 @@ function SettingsScreen() {
   } = useAssistantStore();
   const { prefs: layoutPrefs, update: updateLayout } = useLayoutPrefs();
   const [micDevices, setMicDevices] = useState<MediaDeviceInfo[]>([]);
-  const [accentSelection, setAccentSelection] = useState<AccentSelection>(
-    () => loadAccent(),
+  const [accentSelection, setAccentSelection] = useState<AccentSelection>(() =>
+    loadAccent(),
   );
   const updateAccent = (next: AccentSelection) => {
     setAccentSelection(next);
@@ -1070,9 +1076,7 @@ function SettingsScreen() {
             <input
               type="checkbox"
               checked={layoutPrefs.navCollapsed}
-              onChange={(e) =>
-                updateLayout({ navCollapsed: e.target.checked })
-              }
+              onChange={(e) => updateLayout({ navCollapsed: e.target.checked })}
               aria-label="Collapse navigation"
             />
           </label>
@@ -1145,9 +1149,7 @@ function SettingsScreen() {
                 <select
                   className="rounded-lg border border-surface-panel bg-surface-deep py-2 px-3 text-sm text-light"
                   value={inputDeviceId ?? ""}
-                  onChange={(e) =>
-                    setInputDeviceId(e.target.value || null)
-                  }
+                  onChange={(e) => setInputDeviceId(e.target.value || null)}
                   aria-label="Input device"
                 >
                   <option value="">System default</option>
@@ -1169,8 +1171,8 @@ function SettingsScreen() {
             <span className="text-light">
               Dictation mode (voice → text)
               <span className="block text-xs text-surface-panel">
-                Transcribed speech fills the input box instead of being sent
-                to the assistant. Copy the text anywhere.
+                Transcribed speech fills the input box instead of being sent to
+                the assistant. Copy the text anywhere.
               </span>
             </span>
             <input
@@ -1183,7 +1185,10 @@ function SettingsScreen() {
         </div>
       </Card>
       <Card>
-        <CardHeader title="Privacy" subtitle="Everything stays on this machine" />
+        <CardHeader
+          title="Privacy"
+          subtitle="Everything stays on this machine"
+        />
         <div className="p-4 text-sm text-light">
           <p className="text-xs text-surface-panel">
             Microphone audio, transcription, inference, and memory are local.

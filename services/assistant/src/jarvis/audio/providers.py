@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import asyncio
 import io
+import os
+import tempfile
 from collections.abc import AsyncIterator
 from typing import Any
 
@@ -19,9 +21,9 @@ except ImportError:  # pragma: no cover — numpy optional
     _np = None  # type: ignore[assignment]
 
 try:
-    from faster_whisper import WhisperModel
+    from faster_whisper import WhisperModel  # type: ignore[import-not-found, import-untyped]
 except ImportError:  # pragma: no cover — faster-whisper optional
-    WhisperModel = None
+    WhisperModel = None  # type: ignore[assignment, misc]
 
 try:
     import av as _av
@@ -31,7 +33,7 @@ except ImportError:  # pragma: no cover — av optional (pulled by faster-whispe
 try:
     import piper as _piper
 except ImportError:  # pragma: no cover — piper optional
-    _piper = None
+    _piper = None  # type: ignore[assignment]
 
 from jarvis.config import settings
 from jarvis.telemetry.logger import log_event
@@ -124,15 +126,11 @@ class FasterWhisperSTT:
         ready = await asyncio.to_thread(self._ensure_loaded)
         if not ready:
             return ""
-        import os
-        import tempfile
-
         fd, path = tempfile.mkstemp(suffix=suffix)
         try:
             with os.fdopen(fd, "wb") as f:
                 f.write(audio)
-            text = await asyncio.to_thread(self._transcribe_file, path)
-            return text
+            return await asyncio.to_thread(self._transcribe_file, path)
         finally:
             try:
                 os.unlink(path)
@@ -170,7 +168,7 @@ class FasterWhisperSTT:
                 level="info",
                 details={"chars": len(text), "duration_s": round(duration_s, 2)},
             )
-            return text
+            return text  # noqa: TRY300
         except Exception as exc:  # noqa: BLE001 — transcription failure is non-fatal
             log_event(
                 "jarvis.audio.providers",

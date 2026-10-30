@@ -63,9 +63,7 @@ export function useAudioLevel() {
       let smoothed = 0;
       let lastPush = 0;
       const constraints: MediaStreamConstraints = {
-        audio: inputDeviceId
-          ? { deviceId: { exact: inputDeviceId } }
-          : true,
+        audio: inputDeviceId ? { deviceId: { exact: inputDeviceId } } : true,
       };
       navigator.mediaDevices
         .getUserMedia(constraints)

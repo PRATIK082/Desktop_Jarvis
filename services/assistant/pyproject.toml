@@ -48,6 +48,6 @@ preview = false
 python_version = "3.11"
 strict = true
 warn_return_any = true
-warn_unused_ignores = true
+warn_unused_ignores = false
 disallow_untyped_defs = true
 disallow_any_generics = true

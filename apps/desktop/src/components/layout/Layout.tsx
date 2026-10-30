@@ -294,8 +294,7 @@ export function BottomDock({
       rec.maxAlternatives = 1;
       setIsListeningSTT(true);
       rec.onresult = (ev: SpeechRecognitionResultEvent) => {
-        const transcript: string =
-          ev?.results?.[0]?.[0]?.transcript ?? "";
+        const transcript: string = ev?.results?.[0]?.[0]?.transcript ?? "";
         if (transcript.trim()) {
           if (dictationMode) {
             onInputChange(transcript.trim());
@@ -378,10 +377,7 @@ export function BottomDock({
         : MediaRecorder.isTypeSupported("audio/mp4")
           ? "audio/mp4"
           : "";
-      const mr = new MediaRecorder(
-        stream,
-        mimeType ? { mimeType } : undefined,
-      );
+      const mr = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
       mediaRecorderRef.current = mr;
       const blobType = mimeType || "audio/webm";
       mr.ondataavailable = (e) => {
@@ -471,7 +467,9 @@ export function BottomDock({
   const continuousRecRef = useRef<SpeechRecognitionInstance | null>(null);
   const accumulatedRef = useRef<string>("");
   const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const continuousRestartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const continuousRestartTimerRef = useRef<ReturnType<
+    typeof setTimeout
+  > | null>(null);
   const isSpeakingRef = useRef(false);
   const continuousStartRef = useRef<(() => void) | null>(null);
 
@@ -565,9 +563,7 @@ export function BottomDock({
                 setMuted(false);
                 return;
               }
-              if (
-                /disable listening|turn off listening/.test(lower)
-              ) {
+              if (/disable listening|turn off listening/.test(lower)) {
                 setContinuousListening(false);
                 return;
               }
@@ -1051,7 +1047,9 @@ export function HomeDashboard() {
             onClick={() =>
               window.dispatchEvent(new Event("jarvis:focus-input"))
             }
-          >            <svg
+          >
+            {" "}
+            <svg
               className="w-4 h-4 mr-2"
               fill="none"
               stroke="currentColor"
