@@ -125,3 +125,6 @@ Copy `.env.example` to `.env` and adjust. See `.env.example` for all keys
 ## License
 
 MIT (see LICENSE).
+## Development roadmap
+
+The staged implementation backlog, including local/cloud model routing, memory evolution, privacy-controlled activity awareness, plugins/MCP, computer use and multi-agent execution, is maintained in [`docs/IMPLEMENTATION_BACKLOG.md`](docs/IMPLEMENTATION_BACKLOG.md). The broader product and architecture vision is documented in [`docs/PRODUCTION_GLOBAL_PLAN.md`](docs/PRODUCTION_GLOBAL_PLAN.md).
