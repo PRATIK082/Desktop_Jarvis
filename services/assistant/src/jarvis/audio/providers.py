@@ -16,7 +16,7 @@ from collections.abc import AsyncIterator
 from typing import Any
 
 try:
-    import numpy as _np
+    import numpy as _np  # type: ignore[import-not-found]
 except ImportError:  # pragma: no cover — numpy optional
     _np = None  # type: ignore[assignment]
 
@@ -26,12 +26,12 @@ except ImportError:  # pragma: no cover — faster-whisper optional
     WhisperModel = None  # type: ignore[assignment, misc]
 
 try:
-    import av as _av
+    import av as _av  # type: ignore[import-not-found]
 except ImportError:  # pragma: no cover — av optional (pulled by faster-whisper)
     _av = None  # type: ignore[assignment]
 
 try:
-    import piper as _piper
+    import piper as _piper  # type: ignore[import-not-found]
 except ImportError:  # pragma: no cover — piper optional
     _piper = None  # type: ignore[assignment]
 
