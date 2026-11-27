@@ -46,8 +46,13 @@ class TTSProvider(Protocol):
 
 
 @runtime_checkable
-class OllamaProvider(Protocol):
-    """Ollama local LLM provider (Agent.md §8)."""
+class LLMProvider(Protocol):
+    """Provider-neutral contract for chat, structured output and embeddings.
+
+    Implementations should be constructed lazily. Provider-specific
+    exceptions should expose a stable error_code and must not leak
+    credentials or raw request payloads in their messages.
+    """
 
     async def health_check(self) -> bool:
         ...
@@ -83,6 +88,13 @@ class OllamaProvider(Protocol):
 
     async def get_runtime_metrics(self) -> dict[str, object]:
         ...
+
+
+@runtime_checkable
+class OllamaProvider(LLMProvider, Protocol):
+    """Backward-compatible name for an Ollama-compatible LLM provider."""
+
+
 
 
 @dataclass
