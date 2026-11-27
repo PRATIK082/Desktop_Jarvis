@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+
 import pytest
 
 from jarvis.api.ollama import OllamaClient
@@ -22,8 +24,6 @@ def test_ollama_client_implements_provider_neutral_contract() -> None:
         assert isinstance(provider, OllamaProvider)
     finally:
         # AsyncClient.close is async; no network request is made by construction.
-        import asyncio
-
         asyncio.run(provider.close())
 
 
