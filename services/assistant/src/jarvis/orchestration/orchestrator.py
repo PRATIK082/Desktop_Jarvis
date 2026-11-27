@@ -33,8 +33,6 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
-from jarvis.providers.base import LLMProvider
-from jarvis.providers.safety import LLMProviderError, sanitize_untrusted_output
 from jarvis.config import settings
 from jarvis.orchestration.events import (
     AssistantErrorEvent,
@@ -47,6 +45,8 @@ from jarvis.orchestration.events import (
     TranscriptEvent,
 )
 from jarvis.policy.engine import PolicyEngine, RiskLevel
+from jarvis.providers.base import LLMProvider
+from jarvis.providers.safety import LLMProviderError, sanitize_untrusted_output
 from jarvis.state import AWAITING_APPROVAL, EXECUTING, IDLE, THINKING
 from jarvis.telemetry.logger import get_logger
 from jarvis.tools.registry import ToolRegistry, ToolResult
@@ -704,7 +704,8 @@ class Orchestrator:
     def _system_prompt(self, category: str, context: dict[str, Any]) -> str:
         return (
             "You are JARVIS, a privacy-first local desktop assistant. "
-            "You use the configured language-model provider under the user's local-first privacy policy. "
+            "You use the configured language-model provider under the user's "
+            "local-first privacy policy. "
             f"Current request category: {category}. "
             "Available context: " + json.dumps(context)[:1000] + ". "
             "Rules: (1) Never pretend you performed an action you did not. "
