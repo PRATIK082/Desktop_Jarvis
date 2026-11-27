@@ -46,7 +46,7 @@ Important gaps to validate before extending:
 
 ### P0 — Engineering baseline and safety contracts
 
-- [ ] Inventory every API endpoint, tool, provider, data store and UI setting against actual code.
+- [x] Inventory the core sidecar provider/orchestration/API wiring, CI and tests (see ARCHITECTURE_AUDIT_2026-11.md); full UI and endpoint inventory remains open.
 - [ ] Establish a capability matrix: implemented, partial, planned, unsupported.
 - [ ] Add architecture decision records for provider routing, activity timeline, plugins/MCP and computer use.
 - [ ] Verify secret handling; move provider credentials to OS keychain/credential vault rather than ordinary config.
@@ -183,3 +183,13 @@ JARVIS may help a person understand their own computer usage, focus patterns and
 ## First implementation recommendation
 
 Start with **P1: provider-neutral model gateway**, but first complete the P0 inventory and tests. It is the enabling foundation for local/cloud decision-making, task-specific models, future vision models, plugins and agents. Do not begin by adding many cloud SDKs directly into the orchestrator; isolate them behind adapters and policy-controlled routing.
+
+
+## Execution log
+
+### 2026-11-27
+- Added source-level architecture audit: `docs/ARCHITECTURE_AUDIT_2026-11.md`.
+- Added provider-neutral `LLMProvider` protocol while preserving `OllamaProvider` compatibility.
+- Added structural and behavior contract tests for the mock and Ollama client.
+- Fixed CI's pre-existing Node setup failure: the workflow referenced npm caching and `npm ci` without a committed package lock. The workflow now uses workspace-aware `npm install` and does not request a nonexistent lockfile cache. This restores CI execution but does not provide lockfile reproducibility; a reviewed lockfile should be generated and committed as a separate dependency-management task.
+- GitHub Actions validation is pending for the latest main commit; do not treat the code as test-passing until the run completes.
