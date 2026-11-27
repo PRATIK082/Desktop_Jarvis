@@ -10,7 +10,10 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 from typing import Any
 
-import numpy as _np
+try:
+    import numpy as _np
+except ImportError:  # pragma: no cover — numpy optional
+    _np = None  # type: ignore[assignment]
 
 try:
     from openwakeword import Model  # type: ignore[import-not-found]
