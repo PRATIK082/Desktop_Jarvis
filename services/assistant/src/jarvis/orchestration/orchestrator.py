@@ -33,7 +33,8 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
-from jarvis.api.ollama import OllamaClient, OllamaError, _sanitize_tool_output
+from jarvis.providers.base import LLMProvider
+from jarvis.providers.safety import LLMProviderError, sanitize_untrusted_output
 from jarvis.config import settings
 from jarvis.orchestration.events import (
     AssistantErrorEvent,
@@ -138,12 +139,13 @@ class Orchestrator:
 
     def __init__(
         self,
-        ollama: OllamaClient,
+        ollama: LLMProvider,
         registry: ToolRegistry,
         policy: PolicyEngine,
         max_tool_iterations: int = DEFAULT_MAX_TOOL_ITERATIONS,
     ) -> None:
-        self.ollama = ollama
+        self.llm = ollama
+        self.ollama = ollama  # Backward-compatible attribute alias.
         self.registry = registry
         self.policy = policy
         self.max_tool_iterations = max_tool_iterations
@@ -304,7 +306,7 @@ class Orchestrator:
         if settings.ollama_chat_model:
             return settings.ollama_chat_model
         try:
-            installed = await self.ollama.list_models()
+            installed = await self.llm.list_models()
         except Exception:  # noqa: BLE001 — best-effort fallback
             return None
         for name in installed:
@@ -702,7 +704,7 @@ class Orchestrator:
     def _system_prompt(self, category: str, context: dict[str, Any]) -> str:
         return (
             "You are JARVIS, a privacy-first local desktop assistant. "
-            "You run entirely on the user's machine with Ollama. "
+            "You use the configured language-model provider under the user's local-first privacy policy. "
             f"Current request category: {category}. "
             "Available context: " + json.dumps(context)[:1000] + ". "
             "Rules: (1) Never pretend you performed an action you did not. "
@@ -726,7 +728,7 @@ class Orchestrator:
     ) -> dict[str, Any]:
         """Step 4: request a structured tool proposal from the model."""
         try:
-            proposal = await self.ollama.chat_structured(
+            proposal = await self.llm.chat_structured(
                 messages=messages,
                 schema=TOOL_PLAN_SCHEMA,
                 temperature=0.1,  # low temperature for action planning
@@ -752,18 +754,18 @@ class Orchestrator:
         """
         chunks: list[str] = []
         try:
-            async for delta in self.ollama.chat_stream(
+            async for delta in self.llm.chat_stream(
                 messages=messages, temperature=0.2, model=model
             ):
                 chunks.append(delta)
                 events.append(StreamChunkEvent(delta=delta, turn_id=turn_id))
         except Exception as exc:  # noqa: BLE001 — degrade gracefully
-            code = exc.error_code if isinstance(exc, OllamaError) else "internal_error"
+            code = exc.error_code if isinstance(exc, LLMProviderError) else "internal_error"
             events.append(
                 AssistantErrorEvent(
                     code=code,
                     message="I couldn't reach the language model. "
-                    "Check that Ollama is running and a model is selected.",
+                    "Check that the selected language-model provider is available and a model is selected.",
                     recoverable=True,
                     retry_available=True,
                     request_id=request_id,
@@ -826,7 +828,7 @@ class Orchestrator:
         # Redact/truncate any string values.
         for key, value in list(out.items()):
             if isinstance(value, str):
-                out[key] = _sanitize_tool_output(value)
+                out[key] = sanitize_untrusted_output(value)
         out["ok"] = result.ok
         out["verdict"] = result.verdict or ("done" if result.ok else "failed")
         out["error_code"] = result.error_code
