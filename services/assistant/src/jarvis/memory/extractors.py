@@ -122,7 +122,7 @@ def _extract_pdf(path: str) -> str:
     """Extract text from PDF using pypdf if available."""
     pdf_reader_cls: type[Any] | None = None
     try:
-        from pypdf import PdfReader as _PR  # noqa: PLC0415,I001 — optional PDF dep, lazy import
+        from pypdf import PdfReader as _PR  # type: ignore[import-not-found]  # noqa: PLC0415,I001 — optional PDF dep, lazy import
         pdf_reader_cls = _PR
     except ImportError:
         try:
