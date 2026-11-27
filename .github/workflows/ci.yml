@@ -20,7 +20,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
-          cache: "npm"
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
@@ -29,7 +28,7 @@ jobs:
           cache: "pip"
 
       - name: Install Node dependencies
-        run: npm ci --workspaces
+        run: npm install --workspaces --no-audit --no-fund
 
       - name: Install Python dependencies
         run: |
