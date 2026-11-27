@@ -16,7 +16,7 @@ from typing import Protocol, runtime_checkable
 class STTProvider(Protocol):
     """Speech-to-text provider. Stream transcripts from audio."""
 
-    async def transcribe_stream(self, audio_chunks: AsyncIterator[bytes]) -> AsyncIterator[str]:
+    def transcribe_stream(self, audio_chunks: AsyncIterator[bytes]) -> AsyncIterator[str]:
         ...
 
     async def health(self) -> bool:
@@ -27,7 +27,7 @@ class STTProvider(Protocol):
 class WakeWordProvider(Protocol):
     """Optional wake-word detection provider."""
 
-    async def detect(self, audio_chunks: AsyncIterator[bytes]) -> AsyncIterator[bool]:
+    def detect(self, audio_chunks: AsyncIterator[bytes]) -> AsyncIterator[bool]:
         ...
 
     async def health(self) -> bool:
@@ -38,7 +38,7 @@ class WakeWordProvider(Protocol):
 class TTSProvider(Protocol):
     """Text-to-speech provider. Stream audio from text."""
 
-    async def synthesize_stream(self, text: str) -> AsyncIterator[bytes]:
+    def synthesize_stream(self, text: str) -> AsyncIterator[bytes]:
         ...
 
     async def health(self) -> bool:
@@ -63,7 +63,7 @@ class LLMProvider(Protocol):
     async def show_model(self, model: str) -> dict[str, object]:
         ...
 
-    async def chat_stream(
+    def chat_stream(
         self,
         messages: list[dict[str, object]],
         model: str | None = None,
