@@ -95,8 +95,6 @@ class OllamaProvider(LLMProvider, Protocol):
     """Backward-compatible name for an Ollama-compatible LLM provider."""
 
 
-
-
 @dataclass
 class MockSTTResult:
     text: str
