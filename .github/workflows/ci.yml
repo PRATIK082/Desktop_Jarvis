@@ -35,6 +35,20 @@ jobs:
           pip install -e services/assistant
           pip install ruff mypy pytest pytest-asyncio
 
+      - name: Install Linux system dependencies for Tauri
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            build-essential \
+            curl \
+            wget \
+            file \
+            libxdo-dev \
+            libssl-dev \
+            librsvg2-dev \
+            libayatana-appindicator3-dev
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
