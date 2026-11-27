@@ -20,6 +20,7 @@ from typing import Any, cast
 import httpx
 
 from jarvis.config import settings
+from jarvis.providers.safety import LLMProviderError, sanitize_untrusted_output
 
 HTTP_OK = 200
 HTTP_NOT_FOUND = 404
@@ -31,12 +32,11 @@ MAX_RETRY_ATTEMPTS = 3
 BACKOFF_BASE_S = 0.5
 
 
-class OllamaError(Exception):
-    """Base Ollama client error."""
+class OllamaError(LLMProviderError):
+    """Ollama-specific error retaining the shared provider error contract."""
 
     def __init__(self, message: str, error_code: str = "ollama_error") -> None:
-        super().__init__(message)
-        self.error_code = error_code
+        super().__init__(message, error_code)
 
 
 class OllamaConnectionError(OllamaError):
@@ -107,24 +107,8 @@ async def _retry(
 
 
 def _sanitize_tool_output(output: Any) -> str:
-    """Sanitize a tool result before returning it to the model.
-
-    Redacts secrets, truncates oversized payloads, and never returns raw
-    exceptions/stack traces. The model must never see untrusted tool output
-    verbatim.
-    """
-    if output is None:
-        return ""
-    text = str(output)
-    # Redact likely secrets (tokens, keys, passwords) crudely; a richer
-    # redaction pass lives in telemetry.logger.SENSITIVE_KEYS.
-    _secret_pattern = r"(?i)(api[_-]?key|secret|token|password)\s*[:=]\s*\S+"  # noqa: S105 — redaction pattern, not a credential
-    text = re.sub(_secret_pattern, r"\1=***REDACTED***", text)
-    # Truncate oversized outputs to protect the context window.
-    max_len = 4000
-    if len(text) > max_len:
-        text = text[:max_len] + "\n...[output truncated by JARVIS]..."
-    return text
+    """Backward-compatible alias for the shared provider output sanitizer."""
+    return sanitize_untrusted_output(output)
 
 
 class OllamaClient:
