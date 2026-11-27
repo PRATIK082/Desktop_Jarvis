@@ -11,7 +11,7 @@ from collections.abc import AsyncIterator
 from typing import Any
 
 try:
-    import numpy as _np
+    import numpy as _np  # type: ignore[import-not-found]
 except ImportError:  # pragma: no cover — numpy optional
     _np = None  # type: ignore[assignment]
 
