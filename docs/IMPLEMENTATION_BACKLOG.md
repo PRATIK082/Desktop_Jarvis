@@ -193,3 +193,12 @@ Start with **P1: provider-neutral model gateway**, but first complete the P0 inv
 - Added structural and behavior contract tests for the mock and Ollama client.
 - Fixed CI's pre-existing Node setup failure: the workflow referenced npm caching and `npm ci` without a committed package lock. The workflow now uses workspace-aware `npm install` and does not request a nonexistent lockfile cache. This restores CI execution but does not provide lockfile reproducibility; a reviewed lockfile should be generated and committed as a separate dependency-management task.
 - GitHub Actions validation is pending for the latest main commit; do not treat the code as test-passing until the run completes.
+
+
+### 2026-11-27 — P1 provider seam
+- Added a provider-neutral LLM protocol and corrected async-generator protocol typing.
+- Refactored orchestration to consume the LLM protocol, use a shared provider error base, and use provider-independent tool-output sanitization. The current live adapter remains Ollama; no cloud provider is connected yet.
+- Added contract tests for the mock and Ollama implementations.
+- Declared runtime dependencies already required by existing code paths (psutil and python-multipart); annotated intentionally optional audio/PDF imports for strict type checking.
+- CI workflow was repaired to avoid requiring a missing npm lockfile. A committed lockfile remains a separate reproducibility task.
+- Current validation is running in GitHub Actions. The last observed run reached backend type checking on Python 3.12; the full matrix and test suite have not yet been confirmed green.
