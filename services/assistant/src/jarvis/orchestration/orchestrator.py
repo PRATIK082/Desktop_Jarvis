@@ -766,7 +766,8 @@ class Orchestrator:
                 AssistantErrorEvent(
                     code=code,
                     message="I couldn't reach the language model. "
-                    "Check that the selected language-model provider is available and a model is selected.",
+                    "Check that the selected language-model provider is available "
+                    "and a model is selected.",
                     recoverable=True,
                     retry_available=True,
                     request_id=request_id,
