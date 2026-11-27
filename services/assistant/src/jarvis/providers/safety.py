@@ -20,7 +20,7 @@ def sanitize_untrusted_output(output: Any, max_len: int = 4000) -> str:
         return ""
     text = str(output)
     secret_pattern = (
-        r"(?i)(api[_-]?key|secret|token|password)\s*[:=]\s*\S+"
+        r"(?i)(api[_-]?key|secret|token|password)\s*[:=]\s*\S+"  # noqa: S105 — redaction pattern, not a credential
     )
     text = re.sub(secret_pattern, r"\1=***REDACTED***", text)
     if len(text) > max_len:
