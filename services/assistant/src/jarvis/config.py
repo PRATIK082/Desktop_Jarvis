@@ -70,6 +70,8 @@ class Settings(BaseSettings):
     # Engine selection (clean-room engine abstraction)
     engine: str = Field("local", description="Active engine: local or cloud")
     cloud_api_key: str = Field("", description="Operator-provided cloud engine key (never logged)")
+    llm_routing_mode: str = Field("local_only", description="Model routing policy: local_only, ask_before_cloud, cloud_allowed")
+    cloud_providers_enabled: bool = Field(False, description="Allow configured cloud provider adapters")
 
     # VAD
     vad_enabled: bool = Field(True, description="Enable voice activity detection")

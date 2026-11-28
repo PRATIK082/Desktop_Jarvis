@@ -202,3 +202,13 @@ Start with **P1: provider-neutral model gateway**, but first complete the P0 inv
 - Declared runtime dependencies already required by existing code paths (psutil and python-multipart); annotated intentionally optional audio/PDF imports for strict type checking.
 - CI workflow was repaired to avoid requiring a missing npm lockfile. A committed lockfile remains a separate reproducibility task.
 - Current validation is running in GitHub Actions. The last observed run reached backend type checking on Python 3.12; the full matrix and test suite have not yet been confirmed green.
+
+
+### 2026-11-28 — P1 routing policy foundation
+- Added deterministic ModelRouter with local-first ordering and explicit provider capability matching.
+- Added routing modes: local_only, ask_before_cloud, cloud_allowed.
+- Added data classifications; sensitive/restricted requests are denied cloud routing even if a caller supplies consent.
+- Cloud routing requires both global cloud enablement and per-request consent; no implicit cloud fallback.
+- Added configuration switches with safe defaults: local_only and cloud providers disabled.
+- Added focused async tests for local preference, no-cloud local-only mode, approval gating, sensitive-data denial, global disablement, capability matching and explicitly approved cloud routing.
+- Router is not yet wired into the live orchestrator and no cloud adapter is active. That integration is a separate next step after CI validates this policy module.
